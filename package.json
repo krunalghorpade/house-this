@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --check dist/app.js && node --check server.mjs"
+    "sync:root": "node scripts/sync-root.mjs",
+    "check": "node --check dist/app.js && node --check server.mjs && node scripts/sync-root.mjs --check"
   }
 }

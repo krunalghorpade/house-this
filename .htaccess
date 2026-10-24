@@ -1,0 +1,5 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(?:\.git|\.openai|scripts|qa|node_modules)(?:/|$) - [F,L]
+  RewriteRule ^(?:package\.json|server\.mjs|README\.md|\.cpanel\.yml|\.gitignore)$ - [F,L]
+</IfModule>

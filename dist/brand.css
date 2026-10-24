@@ -28,7 +28,7 @@ body {
 body::before {
   z-index: 0;
   opacity: 1;
-  background-image: url('/grain.svg');
+  background-image: url('./grain.svg');
   background-size: 160px 160px;
 }
 

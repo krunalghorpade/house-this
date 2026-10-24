@@ -12,6 +12,12 @@ npm run dev
 
 Open http://127.0.0.1:4173. Deploy the `dist` directory to a static host, or publish through the Sites workflow using `.openai/hosting.json`.
 
+## cPanel
+
+This repository also has a root `index.html` that loads assets from `dist/`. If the repository is cloned directly into your domain's Document Root, the site works at the domain URL without a Node.js application or build step. After pulling updates, the Document Root must contain both `index.html` and `dist/`. The root `.htaccess` blocks Apache access to repository and development files.
+
+For `housethis.kratex.in`, `.cpanel.yml` deploys `dist/` into `$HOME/housethis.kratex.in` when the cPanel-managed clone is elsewhere. If the clone itself is the Document Root, deployment leaves it untouched because the root entry page already works. In cPanel → Files → Git Version Control, use **Update from Remote** followed by **Deploy HEAD Commit** after pulling changes from GitHub. The deploy task requires the Document Root to exist at `$HOME/housethis.kratex.in`; if cPanel shows a different absolute path, edit `scripts/deploy-cpanel.sh` first. When editing `dist/index.html`, run `npm run sync:root` before committing to refresh the root entry page.
+
 ## Behavior
 
 - On a desktop pointer, hovering opens a record; clicking starts playback.

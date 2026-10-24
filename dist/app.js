@@ -8,7 +8,8 @@ const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shortTitle = (title) => title.replace(/\s*\b(TECH HOUSE|HOUSE MUSIC|HOUSE REMIX)\s*$/i, '').replace(/\s*\(?Kratex Remix\)?\s*/i, ' ').trim();
 const time = (ms) => `${Math.floor((ms || 0) / 60000)}:${String(Math.floor((ms || 0) / 1000) % 60).padStart(2, '0')}`;
-const artURL = (url) => /^https:\/\/i\d+\.sndcdn\.com\//.test(url || '') ? url.replace(/-(large|t300x300)\./, '-t500x500.') : '/fallback.svg';
+const assetURL = (name) => new URL(name, import.meta.url).href;
+const artURL = (url) => /^https:\/\/i\d+\.sndcdn\.com\//.test(url || '') ? url.replace(/-(large|t300x300)\./, '-t500x500.') : assetURL('fallback.svg');
 const trackURL = (url) => { try { const u = new URL(url); return u.protocol === 'https:' && /(^|\.)soundcloud\.com$/.test(u.hostname) ? u.href : PLAYLIST_URL; } catch { return PLAYLIST_URL; } };
 const normalize = (track) => ({ id: String(track.id), title: track.title, artist: (track.publisher_metadata?.artist || track.artist || track.user?.username || 'Kratex').trim(), artwork: artURL(track.artwork_url || track.artwork), url: trackURL(track.permalink_url || track.url), duration: Number(track.duration) || 0 });
 const palette = ['#4f6b70','#8a4336','#d9b881','#57776a','#333d54','#9f513a','#bca268','#4e686e'];
@@ -65,7 +66,7 @@ function render() {
     });
     const img = slot.querySelector('.cover img');
     img.addEventListener('load', () => sampleColor(img, slot));
-    img.addEventListener('error', () => { if (!img.src.endsWith('/fallback.svg')) img.src = '/fallback.svg'; });
+    img.addEventListener('error', () => { if (!img.src.endsWith('/fallback.svg')) img.src = assetURL('fallback.svg'); });
     fragment.append(slot);
   });
   $('#records').replaceChildren(fragment);
@@ -315,7 +316,7 @@ if('mediaSession' in navigator){
 }
 async function init(){
   try{
-    const response=await fetch('/playlist.json');if(!response.ok)throw new Error('Playlist unavailable');
+    const response=await fetch(assetURL('playlist.json'));if(!response.ok)throw new Error('Playlist unavailable');
     const fallback=await response.json();
     tracks=fallback.tracks.map(normalize);
     let initialCount=fallback.total;
