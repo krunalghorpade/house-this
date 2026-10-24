@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#dce2e5">
+  <meta name="description" content="Dig into HOUSE THIS. A growing collection of house music remixes by Kratex. Pick a record. Find your groove.">
+  <title>HOUSE THIS. — A collection by Kratex</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://i1.sndcdn.com">
+  <link rel="preconnect" href="https://w.soundcloud.com">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://w.soundcloud.com/player/api.js" defer></script>
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 4.5 20 12 8 19.5Z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5v14M17 5v14" stroke-width="4"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m5 5 10 7-10 7Z" fill="currentColor" stroke="none"/><path d="M19 5v14" stroke-width="2"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="m19 5-10 7 10 7Z" fill="currentColor" stroke="none"/><path d="M5 5v14" stroke-width="2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><path d="m3 8 9-4 9 4-9 4ZM3 12l9 4 9-4M3 16l9 4 9-4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 6h3c5 0 7 12 12 12h3M3 18h3c2.1 0 3.8-2.1 5.4-5M14 8c1.3-1.3 2.6-2 4-2h3M18 3l3 3-3 3M18 15l3 3-3 3"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-soundcloud" viewBox="0 0 28 20"><path d="M2 11v4m3-7v9m3-11v11m3-13v13m3-14v14" stroke-width="1.7" stroke-linecap="round"/><path d="M17 17V4a6 6 0 0 1 7 6 3.5 3.5 0 1 1 0 7Z" fill="currentColor" stroke="none"/></symbol>
+  </defs></svg>
+  <a class="skip-link" href="#collection">Skip to the records</a>
+  <header class="site-header">
+    <a href="#" class="wordmark" aria-label="House This home">HOUSE THIS<span class="brand-dot">.</span><span class="byline">BY KRATEX</span></a>
+    <div class="view-switch glass" role="group" aria-label="Collection view">
+      <button class="view-button is-selected" data-view="stack" aria-pressed="true"><svg><use href="#i-stack"/></svg><span>Stack</span></button>
+      <button class="view-button" data-view="list" aria-pressed="false"><svg><use href="#i-list"/></svg><span>Tracklist</span></button>
+    </div>
+    <div class="header-links"><a class="source-link" href="https://soundcloud.com/kratexmusic/sets/house-this-101-house-music" target="_blank" rel="noopener">SoundCloud<svg><use href="#i-arrow"/></svg></a><button id="about-button" class="round-button glass" aria-label="About this collection">i</button></div>
+  </header>
+
+  <main>
+    <aside class="intro">
+      <div class="eyebrow"><span class="tiny-disc"></span> THE REMIX COLLECTION</div>
+      <h1>HOUSE<br>THIS<span>.</span></h1>
+      <p>Familiar sounds.<br> A different kind of energy.</p>
+      <div class="collection-credit"><span class="credit-line"></span><span>101 house music remixes.<br>Made & curated by <a href="https://soundcloud.com/kratexmusic" target="_blank" rel="noopener">Kratex<svg><use href="#i-arrow"/></svg></a></span></div>
+      <button id="play-collection" class="play-collection"><span class="round-button"><svg><use href="#i-play"/></svg></span>Play the collection</button>
+    </aside>
+
+    <section id="collection" class="collection" aria-label="Playlist artwork collection" tabindex="-1">
+      <div class="collection-topline"><span>THE CRATE</span><span id="collection-counter">01 — 26</span></div>
+      <div id="records" class="records" aria-label="Tracks"></div>
+      <div class="collection-end"><span class="end-disc"></span><p>Good music keeps coming.</p><span>New remixes. Same house.</span><a href="https://soundcloud.com/kratexmusic/sets/house-this-101-house-music" target="_blank" rel="noopener">Follow the collection <svg><use href="#i-arrow"/></svg></a></div>
+    </section>
+
+    <aside class="collection-meta">
+      <span class="eyebrow">IN THE COLLECTION</span>
+      <div class="track-count" id="track-count">026<span>TRACKS</span></div>
+      <span class="live-status" id="sync-status"><span></span>Connecting to SoundCloud</span>
+      <button class="shuffle-button" id="shuffle"><svg><use href="#i-shuffle"/></svg>Surprise me</button>
+      <div class="how-to"><span class="instruction-desktop">Hover to explore.<br>Click to find your groove.</span><span class="instruction-mobile">Tap to explore.<br>Tap again to play.</span></div>
+    </aside>
+  </main>
+  <footer class="site-footer"><span>A LITTLE HOUSE. A LOT OF FEELING.</span><span class="scroll-cue">SCROLL TO DIG <span>↓</span></span><span class="footer-credit">CURATED BY KRATEX <span>↗</span></span></footer>
+
+  <section id="mini-player" class="mini-player glass" aria-label="Music player" hidden>
+    <div class="player-top"><img id="player-art" alt="" width="52" height="52"><div class="player-track"><span id="player-state" class="eyebrow">NOW PLAYING</span><a id="player-title" target="_blank" rel="noopener"></a><span id="player-artist"></span></div><button id="close-player" class="icon-button player-close" aria-label="Close player and pause"><svg><use href="#i-close"/></svg></button></div>
+    <div class="player-bottom"><span id="elapsed">0:00</span><div class="transport"><button id="previous" class="icon-button" aria-label="Previous track"><svg><use href="#i-prev"/></svg></button><button id="play-pause" class="player-play" aria-label="Play"><svg><use href="#i-play"/></svg></button><button id="next" class="icon-button" aria-label="Next track"><svg><use href="#i-next"/></svg></button></div><span id="duration">0:00</span></div>
+    <label class="seek-label"><span class="sr-only">Seek through track</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek through track"></label>
+    <a class="player-source" href="https://soundcloud.com" target="_blank" rel="noopener"><svg><use href="#i-soundcloud"/></svg> SoundCloud</a>
+  </section>
+  <div id="toast" class="toast glass" role="status" hidden></div>
+  <div id="audio-host" class="audio-host"></div>
+  <dialog id="about-dialog" class="about-dialog glass"><button id="close-about" class="icon-button" aria-label="Close about"><svg><use href="#i-close"/></svg></button><span class="eyebrow">TURN IT UP.</span><h2>A little house.<br>A lot of feeling.</h2><p>HOUSE THIS. is a growing collection of house music remixes by Kratex. Familiar records, reimagined for the dance floor.</p><p>Pick a sleeve, open it up, and press play. The collection updates from SoundCloud automatically.</p><a class="dialog-link" href="https://soundcloud.com/kratexmusic" target="_blank" rel="noopener">Find Kratex on SoundCloud <svg><use href="#i-arrow"/></svg></a></dialog>
+  <noscript><p class="noscript">This record collection needs JavaScript. <a href="https://soundcloud.com/kratexmusic/sets/house-this-101-house-music">Listen on SoundCloud</a>.</p></noscript>
+</body>
+</html>
