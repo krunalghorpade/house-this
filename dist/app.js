@@ -1,4 +1,7 @@
 const PLAYLIST_URL = 'https://soundcloud.com/kratexmusic/sets/house-this-101-house-music';
+document.fonts.load('700 16px "House This Logo"').then(faces => {
+  document.documentElement.classList.toggle('logo-font-fallback', faces.length === 0);
+}).catch(() => document.documentElement.classList.add('logo-font-fallback'));
 const REFRESH_MS = 5 * 60 * 1000;
 const $ = (selector) => document.querySelector(selector);
 const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;

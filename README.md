@@ -2,6 +2,8 @@
 
 A responsive artwork collection for Kratex's SoundCloud playlist. Uses Helvetica Neue, CSS 3D record sleeves, and SoundCloud's official Widget API. No API key or build dependencies are required.
 
+The brand theme uses charcoal and the reference artwork's exact green (`#8DFF00`). Only the HOUSE THIS wordmarks use the locally installed Helvetica Neue Condensed Bold face with tight tracking; all other text uses normal Helvetica Neue. Devices without that local face use a condensed fallback silhouette. Theme rules live in `dist/brand.css`.
+
 ## Run
 
 ```sh
