@@ -11,7 +11,8 @@ const time = (ms) => `${Math.floor((ms || 0) / 60000)}:${String(Math.floor((ms |
 const assetURL = (name) => new URL(name, import.meta.url).href;
 const artURL = (url) => /^https:\/\/i\d+\.sndcdn\.com\//.test(url || '') ? url.replace(/-(large|t300x300)\./, '-t500x500.') : assetURL('fallback.svg');
 const trackURL = (url) => { try { const u = new URL(url); return u.protocol === 'https:' && /(^|\.)soundcloud\.com$/.test(u.hostname) ? u.href : PLAYLIST_URL; } catch { return PLAYLIST_URL; } };
-const normalize = (track) => ({ id: String(track.id), title: track.title, artist: (track.publisher_metadata?.artist || track.artist || track.user?.username || 'Kratex').trim(), artwork: artURL(track.artwork_url || track.artwork), url: trackURL(track.permalink_url || track.url), duration: Number(track.duration) || 0 });
+const buyURL = (url) => { try { const parsed = new URL(url); return ['https:', 'http:'].includes(parsed.protocol) ? parsed.href : null; } catch { return null; } };
+const normalize = (track) => ({ id: String(track.id), title: track.title, artist: (track.publisher_metadata?.artist || track.artist || track.user?.username || 'Kratex').trim(), artwork: artURL(track.artwork_url || track.artwork), url: trackURL(track.permalink_url || track.url), buyUrl: buyURL(track.purchase_url || track.buy_url || track.buyUrl), duration: Number(track.duration) || 0 });
 const palette = ['#4f6b70','#8a4336','#d9b881','#57776a','#333d54','#9f513a','#bca268','#4e686e'];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const hoverDevice = matchMedia('(hover: hover) and (pointer: fine)');
@@ -20,6 +21,7 @@ let tracks = [], slots = [], view = 'stack', openId = null, currentId = null;
 let widget, widgetReady = false, playing = false, playerIds = [], singleMode = false;
 let pendingId = null, restartId = null, lastSync = 0, refreshBusy = false, playTimeout, toastTimeout;
 let selectedDuration = 0, isSeeking = false, framePending = false, closeTimer, syncFrame;
+let ipodIndex = 0, ipodScreen = 'cover', lastWheelAt = 0, ipodTouchX = null;
 
 function toast(message) {
   clearTimeout(toastTimeout);
@@ -50,7 +52,7 @@ function render() {
     slot.innerHTML = `<span class="record-index" aria-hidden="true">${String(index + 1).padStart(2,'0')}</span><button class="record-button" aria-label="Open ${escapeHTML(track.title)}" aria-expanded="false"><span class="record-object"><span class="record-back"><img src="${escapeHTML(track.artwork)}" alt="" aria-hidden="true" loading="lazy" decoding="async"></span><span class="cover"><img src="${escapeHTML(track.artwork)}" alt="${escapeHTML(shortTitle(track.title))} artwork" ${index > 5 ? 'loading="lazy"' : 'fetchpriority="high"'} decoding="async" crossorigin="anonymous"><span class="cover-play"><span>${icon('play')}</span></span></span><span class="spine spine-top" aria-hidden="true">${spine}</span><span class="spine spine-bottom" aria-hidden="true">${spine}</span></span><span class="record-caption"><span><span class="caption-title">${title}</span><span class="caption-artist">${escapeHTML(track.artist)} · Kratex Remix</span></span><span class="caption-action">${time(track.duration)} ↗</span></span></button>`;
     const button = slot.querySelector('button');
     slot.addEventListener('pointerenter', (event) => { if (event.pointerType !== 'touch' && hoverDevice.matches && !compactScreen.matches && view === 'stack') { clearTimeout(closeTimer); openRecord(track.id); } });
-    slot.addEventListener('pointerleave', (event) => { if (event.pointerType !== 'touch' && hoverDevice.matches && !compactScreen.matches) closeTimer = setTimeout(() => { if (openId === track.id && !slot.contains(document.activeElement)) openRecord(null); }, 180); });
+    slot.addEventListener('pointerleave', (event) => { if (event.pointerType !== 'touch' && hoverDevice.matches && !compactScreen.matches && view === 'stack') closeTimer = setTimeout(() => { if (openId === track.id && !slot.contains(document.activeElement)) openRecord(null); }, 180); });
     button.addEventListener('click', (event) => {
       if (view === 'list' || (hoverDevice.matches && !compactScreen.matches && event.pointerType !== 'touch') || openId === track.id) { selectTrack(track.id); return; }
       openRecord(track.id);
@@ -75,6 +77,7 @@ function render() {
   if (openId && tracks.some(t => t.id === openId)) openRecord(openId);
   updateCurrent();
   updateAngles();
+  renderIPod();
 }
 function sampleColor(img, slot) {
   try {
@@ -107,6 +110,7 @@ function updateAngles() {
 }
 function scheduleAngles() { if (!framePending) { framePending = true; requestAnimationFrame(updateAngles); } }
 function openRecord(id) {
+  clearTimeout(closeTimer);
   openId = id;
   slots.forEach(slot => {
     const opened = slot.dataset.id === id;
@@ -120,6 +124,12 @@ function openRecord(id) {
   let started;
   function animate(now) { started ??= now; updateAngles(); if(now-started<760&&!reducedMotion.matches) requestAnimationFrame(animate); }
   requestAnimationFrame(animate);
+}
+function revealTrack(id) {
+  if (view === 'ipod') { ipodIndex = Math.max(0, tracks.findIndex(track => track.id === id)); setIPodScreen('now'); return; }
+  openRecord(id);
+  const slot = slots.find(item => item.dataset.id === id);
+  if (slot) setTimeout(() => slot.scrollIntoView({ behavior: reducedMotion.matches ? 'instant' : 'smooth', block: 'center' }), reducedMotion.matches ? 0 : 140);
 }
 function updateCurrent() {
   for (const slot of slots) {
@@ -137,6 +147,16 @@ function setPlaying(value) {
   updateCurrent();
   if (value) clearTimeout(playTimeout);
   if ('mediaSession' in navigator) navigator.mediaSession.playbackState = value ? 'playing' : 'paused';
+  renderIPod();
+}
+function updateDownload(track) {
+  const link = $('#player-download');
+  const url = buyURL(track.buyUrl);
+  link.classList.toggle('is-unavailable', !url);
+  link.setAttribute('aria-disabled', String(!url));
+  link.title = url ? `Open the download link for ${track.title}` : 'No download link for this track';
+  if (url) { link.href = url; link.tabIndex = 0; }
+  else { link.removeAttribute('href'); link.tabIndex = -1; }
 }
 function displayTrack(track) {
   currentId = track.id;
@@ -147,11 +167,15 @@ function displayTrack(track) {
   $('#player-title').textContent = shortTitle(track.title);
   $('#player-title').href = track.url;
   $('#player-artist').textContent = track.artist;
+  updateDownload(track);
   $('#duration').textContent = time(track.duration);
   $('#elapsed').textContent = '0:00';
   $('#seek').value = 0;
   $('#seek').style.setProperty('--progress','0%');
   updateCurrent();
+  ipodIndex = Math.max(0, tracks.findIndex(item => item.id === track.id));
+  renderIPod();
+  updateIPodProgress(0);
   if ('mediaSession' in navigator && 'MediaMetadata' in window) {
     navigator.mediaSession.metadata = new MediaMetadata({title:shortTitle(track.title),artist:track.artist,album:'HOUSE THIS. — Kratex',artwork:[{src:track.artwork,sizes:'500x500',type:'image/jpeg'}]});
   }
@@ -161,6 +185,7 @@ function selectTrack(id, force = false) {
   if (!track) return;
   if (currentId === id && !force && widgetReady) { widget.toggle(); return; }
   displayTrack(track);
+  if (view === 'ipod') setIPodScreen('now');
   setPlaying(false);
   $('#player-state').textContent = 'LOADING';
   if (!widgetReady) { pendingId = id; toast('Connecting to SoundCloud. Your record will start when the player is ready.'); return; }
@@ -177,7 +202,10 @@ function selectTrack(id, force = false) {
 function skip(direction) {
   if (!tracks.length) return;
   const index = tracks.findIndex(t=>t.id===currentId);
-  selectTrack(tracks[(index+direction+tracks.length)%tracks.length].id,true);
+  const start = index < 0 ? (direction > 0 ? -1 : 0) : index;
+  const target = tracks[(start+direction+tracks.length)%tracks.length];
+  selectTrack(target.id,true);
+  revealTrack(target.id);
 }
 async function acceptTracks(sounds, initial = false) {
   // SoundCloud returns ID-only placeholders after the first five records.
@@ -186,7 +214,12 @@ async function acceptTracks(sounds, initial = false) {
   if(!raw.length){tracks=[];playerIds=[];countTracks(0);render();syncStatus(true,'The crate is waiting');lastSync=Date.now();try{localStorage.removeItem('house-this-playlist');}catch{}return;}
   if (initial) playerIds = raw.map(t=>String(t.id));
   const known = new Map(tracks.map(t=>[t.id,t]));
-  const results = raw.map(t=>typeof t.title==='string' ? normalize(t) : known.get(String(t.id)));
+  const results = raw.map(t=>{
+    if (typeof t.title !== 'string') return known.get(String(t.id));
+    const track = normalize(t);
+    track.buyUrl ||= known.get(track.id)?.buyUrl || null;
+    return track;
+  });
   const missing = raw.map((t,i)=>results[i] ? -1 : i).filter(i=>i>=0);
   countTracks(raw.length);
   if(missing.length)syncStatus(false,'Updating the collection');
@@ -206,6 +239,7 @@ async function acceptTracks(sounds, initial = false) {
   try { localStorage.setItem('house-this-playlist',JSON.stringify({tracks:next,updated:lastSync})); } catch {}
   countTracks(next.length);
   if (changed) render();
+  else renderIPod();
   syncStatus(next.length===raw.length,next.length===raw.length?'Live from SoundCloud':`${next.length} of ${raw.length} records available`);
 }
 function resolveTrack(id) {
@@ -244,8 +278,9 @@ function connectPlayer() {
     widget.getCurrentSound(sound=>{
       const id=String(sound?.id);
       const track=tracks.find(t=>t.id===id);
+      if (track && sound?.purchase_url) { track.buyUrl = buyURL(sound.purchase_url); if (id === currentId) updateDownload(track); }
       if(id===restartId){restartId=null;widget.seekTo(0);}
-      if(track && id!==currentId) { displayTrack(track); setPlaying(true); }
+      if(track && id!==currentId) { displayTrack(track); setPlaying(true); revealTrack(id); }
     });
     widget.getDuration(ms=>{selectedDuration=ms;$('#duration').textContent=time(ms);});
   });
@@ -255,6 +290,7 @@ function connectPlayer() {
     $('#elapsed').textContent=time(event.currentPosition);
     const progress=Math.min(1000,Math.round((event.relativePosition||0)*1000));
     $('#seek').value=progress;$('#seek').style.setProperty('--progress',`${progress/10}%`);
+    updateIPodProgress(event.currentPosition);
   });
   widget.bind(events.FINISH,()=>{
     if (singleMode || playerIds.at(-1)===currentId) skip(1);
@@ -277,13 +313,101 @@ function refreshPlaylist() {
   sync.bind(SC.Widget.Events.ERROR,()=>{clearTimeout(timeout);cleanup();syncStatus(false,'Showing saved collection');});
 }
 
-for(const button of document.querySelectorAll('[data-view]')) button.addEventListener('click',()=>{
-  if(view===button.dataset.view)return;
-  view=button.dataset.view;openRecord(null);
-  document.body.classList.toggle('is-list',view==='list');
-  document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('is-selected',b===button);b.setAttribute('aria-pressed',String(b===button));});
-  slots.forEach(slot=>slot.querySelector('button').setAttribute('aria-label',`${view==='list'?'Play':'Open'} ${tracks.find(t=>t.id===slot.dataset.id).title}`));
+function updateIPodProgress(position) {
+  const duration = selectedDuration || tracks.find(track => track.id === currentId)?.duration || 0;
+  $('#ipod-elapsed').textContent = time(position);
+  $('#ipod-remaining').textContent = `-${time(Math.max(0, duration - position))}`;
+  $('#ipod-progress-fill').style.width = `${duration ? Math.min(100, position / duration * 100) : 0}%`;
+}
+function setIPodScreen(screen) {
+  ipodScreen = screen;
+  $('#ipod-cover-screen').hidden = screen !== 'cover';
+  $('#ipod-now-screen').hidden = screen !== 'now';
+  $('#ipod-screen-heading').textContent = screen === 'cover' ? 'Cover Flow' : 'Now Playing';
+  $('#ipod-hint').textContent = screen === 'cover' ? 'Browse covers · select to play' : 'MENU to browse';
+  $('#ipod-instructions').textContent = screen === 'cover' ? 'Browse the covers. Press the center button to play.' : 'Use the wheel to skip, pause, or browse again.';
+  renderIPod();
+}
+function renderIPod() {
+  if (ipodIndex >= tracks.length) ipodIndex = 0;
+  const selected = tracks[ipodIndex] || tracks[0];
+  const active = tracks.find(track => track.id === currentId) || selected;
+  const coverflow = $('#ipod-coverflow');
+  if (!coverflow) return;
+  const fragment = document.createDocumentFragment();
+  const seen = new Set();
+  for (const offset of [-2, -1, 0, 1, 2]) {
+    if (!tracks.length || Math.abs(offset) >= tracks.length) continue;
+    const index = (ipodIndex + offset + tracks.length) % tracks.length;
+    const track = tracks[index];
+    if (seen.has(track.id)) continue;
+    seen.add(track.id);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `ipod-cover${offset === 0 ? ' is-selected' : ''}`;
+    button.setAttribute('aria-label', `${offset === 0 ? 'Play' : 'Browse to'} ${track.title}`);
+    button.style.transform = `translateX(calc(-50% + ${offset * 68}px)) rotateY(${offset * -48}deg) scale(${offset === 0 ? 1 : .83})`;
+    button.style.zIndex = String(5 - Math.abs(offset));
+    const image = document.createElement('img');
+    image.src = track.artwork;
+    image.alt = '';
+    image.loading = 'lazy';
+    button.append(image);
+    button.addEventListener('click', () => {
+      if (ipodTouchX === 'swiped') return;
+      if (offset === 0) { selectTrack(track.id); setIPodScreen('now'); }
+      else { ipodIndex = index; renderIPod(); }
+    });
+    fragment.append(button);
+  }
+  coverflow.replaceChildren(fragment);
+  $('#ipod-selected-title').textContent = selected ? shortTitle(selected.title) : 'HOUSE THIS.';
+  $('#ipod-selected-artist').textContent = selected?.artist || '101 house remixes by Kratex';
+  $('#ipod-position').textContent = `${String(tracks.length ? ipodIndex + 1 : 0).padStart(2, '0')} / ${String(tracks.length).padStart(2, '0')}`;
+  $('#ipod-now-art').src = active?.artwork || assetURL('fallback.svg');
+  $('#ipod-now-title').textContent = active ? shortTitle(active.title) : 'HOUSE THIS.';
+  $('#ipod-now-artist').textContent = active?.artist || 'Kratex';
+  $('#ipod-now-count').textContent = `${Math.max(1, tracks.findIndex(track => track.id === active?.id) + 1)} of ${tracks.length}`;
+  $('#ipod-play-indicator').textContent = playing ? '▶' : 'Ⅱ';
+  $('#ipod-play-indicator').setAttribute('aria-label', playing ? 'Playing' : 'Playback paused');
+  $('#ipod-play-pause').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  $('#ipod-select').setAttribute('aria-label', ipodScreen === 'cover' ? `Play ${selected?.title || 'selected track'}` : (playing ? 'Pause' : 'Play'));
+}
+function browseIPod(direction) {
+  if (!tracks.length) return;
+  ipodIndex = (ipodIndex + direction + tracks.length) % tracks.length;
+  if (ipodScreen !== 'cover') setIPodScreen('cover');
+  else renderIPod();
+}
+function togglePlayback() {
+  if (!currentId) { if (tracks.length) selectTrack(view === 'ipod' ? tracks[ipodIndex]?.id : tracks[0].id); return; }
+  if (widgetReady) widget.toggle();
+  else selectTrack(currentId, true);
+}
+function switchView(nextView) {
+  if (view === nextView) return;
+  view = nextView;
+  openRecord(null);
+  document.body.classList.toggle('is-list', view === 'list');
+  document.body.classList.toggle('is-ipod', view === 'ipod');
+  $('#ipod-view').hidden = view !== 'ipod';
+  document.querySelectorAll('[data-view]').forEach(button => {
+    const selected = button.dataset.view === view;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  slots.forEach(slot => slot.querySelector('button').setAttribute('aria-label', `${view === 'list' ? 'Play' : 'Open'} ${tracks.find(track => track.id === slot.dataset.id).title}`));
+  if (view === 'ipod') {
+    ipodIndex = Math.max(0, tracks.findIndex(track => track.id === currentId));
+    setIPodScreen(currentId ? 'now' : 'cover');
+    window.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+  } else if (currentId) revealTrack(currentId);
+  else window.scrollTo({ top: 0, behavior: reducedMotion.matches ? 'instant' : 'smooth' });
   updateAngles();
+}
+
+for(const button of document.querySelectorAll('[data-view]')) button.addEventListener('click',()=>{
+  switchView(button.dataset.view);
 });
 $('#play-collection').addEventListener('click',()=>{if(tracks.length)selectTrack(tracks[0].id);});
 $('#shuffle').addEventListener('click',()=>{
@@ -293,9 +417,31 @@ $('#shuffle').addEventListener('click',()=>{
   openRecord(track.id);selectTrack(track.id);
   setTimeout(()=>slots.find(s=>s.dataset.id===track.id)?.scrollIntoView({behavior:reducedMotion.matches?'instant':'smooth',block:'center'}),350);
 });
-$('#play-pause').addEventListener('click',()=>{if(widgetReady)widget.toggle();else if(currentId)selectTrack(currentId,true);});
+$('#play-pause').addEventListener('click',togglePlayback);
 $('#next').addEventListener('click',()=>skip(1));
 $('#previous').addEventListener('click',()=>skip(-1));
+$('#ipod-menu').addEventListener('click',()=>setIPodScreen('cover'));
+$('#ipod-previous').addEventListener('click',()=>skip(-1));
+$('#ipod-next').addEventListener('click',()=>skip(1));
+$('#ipod-play-pause').addEventListener('click',togglePlayback);
+$('#ipod-select').addEventListener('click',()=>{
+  if (ipodScreen === 'cover') { if (tracks[ipodIndex]) selectTrack(tracks[ipodIndex].id); }
+  else togglePlayback();
+});
+$('#ipod-wheel').addEventListener('wheel',event=>{
+  event.preventDefault();
+  const now = Date.now();
+  if (now - lastWheelAt < 135) return;
+  lastWheelAt = now;
+  browseIPod(Math.sign(event.deltaY || event.deltaX));
+},{passive:false});
+$('#ipod-coverflow').addEventListener('pointerdown',event=>{if(event.pointerType==='touch')ipodTouchX=event.clientX;});
+$('#ipod-coverflow').addEventListener('pointerup',event=>{
+  if(typeof ipodTouchX!=='number')return;
+  const distance=event.clientX-ipodTouchX;
+  ipodTouchX=null;
+  if(Math.abs(distance)>35){browseIPod(distance<0?1:-1);ipodTouchX='swiped';setTimeout(()=>{if(ipodTouchX==='swiped')ipodTouchX=null;},180);}
+});
 $('#close-player').addEventListener('click',()=>{widget?.pause();pendingId=null;restartId=null;clearTimeout(playTimeout);setPlaying(false);$('#mini-player').hidden=true;document.body.classList.remove('has-player');});
 $('#seek').addEventListener('input',()=>{isSeeking=true;$('#seek').style.setProperty('--progress',`${$('#seek').value/10}%`);$('#elapsed').textContent=time(selectedDuration*$('#seek').value/1000);});
 $('#seek').addEventListener('change',()=>{if(widgetReady)widget.seekTo(selectedDuration*$('#seek').value/1000);isSeeking=false;});
