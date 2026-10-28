@@ -22,6 +22,7 @@ let widget, widgetReady = false, playing = false, playerIds = [], singleMode = f
 let pendingId = null, restartId = null, lastSync = 0, refreshBusy = false, playTimeout, toastTimeout;
 let selectedDuration = 0, isSeeking = false, framePending = false, closeTimer, syncFrame;
 let ipodIndex = 0, ipodScreen = 'cover', lastWheelAt = 0, ipodTouchX = null;
+const ipodCovers = new Map();
 
 function toast(message) {
   clearTimeout(toastTimeout);
@@ -334,33 +335,54 @@ function renderIPod() {
   const active = tracks.find(track => track.id === currentId) || selected;
   const coverflow = $('#ipod-coverflow');
   if (!coverflow) return;
-  const fragment = document.createDocumentFragment();
-  const seen = new Set();
-  for (const offset of [-2, -1, 0, 1, 2]) {
-    if (!tracks.length || Math.abs(offset) >= tracks.length) continue;
-    const index = (ipodIndex + offset + tracks.length) % tracks.length;
-    const track = tracks[index];
-    if (seen.has(track.id)) continue;
-    seen.add(track.id);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = `ipod-cover${offset === 0 ? ' is-selected' : ''}`;
-    button.setAttribute('aria-label', `${offset === 0 ? 'Play' : 'Browse to'} ${track.title}`);
-    button.style.transform = `translateX(calc(-50% + ${offset * 68}px)) rotateY(${offset * -48}deg) scale(${offset === 0 ? 1 : .83})`;
-    button.style.zIndex = String(5 - Math.abs(offset));
-    const image = document.createElement('img');
-    image.src = track.artwork;
-    image.alt = '';
-    image.loading = 'lazy';
-    button.append(image);
-    button.addEventListener('click', () => {
-      if (ipodTouchX === 'swiped') return;
-      if (offset === 0) { selectTrack(track.id); setIPodScreen('now'); }
-      else { ipodIndex = index; renderIPod(); }
-    });
-    fragment.append(button);
+  const trackIds = new Set(tracks.map(track => track.id));
+  for (const [id, cover] of ipodCovers) {
+    if (!trackIds.has(id)) { cover.button.remove(); ipodCovers.delete(id); }
   }
-  coverflow.replaceChildren(fragment);
+  tracks.forEach((track, index) => {
+    let offset = (index - ipodIndex + tracks.length) % tracks.length;
+    if (offset > tracks.length / 2) offset -= tracks.length;
+    let cover = ipodCovers.get(track.id);
+    if (!cover) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ipod-cover';
+      button.dataset.trackId = track.id;
+      const image = document.createElement('img');
+      image.alt = '';
+      image.decoding = 'async';
+      image.draggable = false;
+      button.append(image);
+      button.addEventListener('click', () => {
+        if (ipodTouchX === 'swiped') return;
+        const nextIndex = tracks.findIndex(item => item.id === track.id);
+        if (nextIndex < 0) return;
+        if (nextIndex === ipodIndex) { selectTrack(track.id); setIPodScreen('now'); }
+        else { ipodIndex = nextIndex; renderIPod(); }
+      });
+      cover = { button, image, offset };
+      ipodCovers.set(track.id, cover);
+      coverflow.append(button);
+    }
+    const { button, image } = cover;
+    const distance = Math.min(3, Math.abs(offset));
+    const direction = Math.sign(offset);
+    // Keep keyed covers mounted so interrupted transitions continue from their
+    // current position. Wrap distant covers behind the viewport, never across it.
+    button.style.transition = Math.abs(cover.offset) >= 3 && Math.abs(offset) >= 3 ? 'none' : '';
+    button.classList.toggle('is-selected', offset === 0);
+    button.setAttribute('aria-label', `${offset === 0 ? 'Play' : 'Browse to'} ${track.title}`);
+    button.setAttribute('aria-hidden', String(distance >= 3));
+    button.tabIndex = distance < 3 ? 0 : -1;
+    button.style.pointerEvents = distance < 3 ? '' : 'none';
+    button.style.transform = `translate3d(calc(-50% + ${direction * [0, 68, 115, 167][distance]}px), 0, 0) rotateY(${direction * -58}deg) scale(${[1, .84, .78, .74][distance]})`;
+    button.style.opacity = distance < 3 ? '1' : '0';
+    button.style.zIndex = String(5 - distance);
+    button.style.willChange = Math.abs(offset) <= 3 ? 'transform, opacity' : 'auto';
+    // Preload the next cover before it enters, without loading the whole playlist.
+    if (Math.abs(offset) <= 3 && image.getAttribute('src') !== track.artwork) image.src = track.artwork;
+    cover.offset = offset;
+  });
   $('#ipod-selected-title').textContent = selected ? shortTitle(selected.title) : 'HOUSE THIS.';
   $('#ipod-selected-artist').textContent = selected?.artist || '101 house remixes by Kratex';
   $('#ipod-position').textContent = `${String(tracks.length ? ipodIndex + 1 : 0).padStart(2, '0')} / ${String(tracks.length).padStart(2, '0')}`;
